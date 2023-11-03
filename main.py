@@ -3,21 +3,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from libs.distributions import Exponential, Log, Normal, Power
+from libs.distributions import check_distributions
 
 N = 1000
 data = np.random.normal(12.6, 4.1, N)
 
-fig, axes = plt.subplots(2, 2, figsize=(16, 10), dpi=200)
-axes = axes.ravel()
-fig.show()
-
-distributions = [Normal, Log, Exponential, Power]
-for i in range(len(distributions)):
-    dist = distributions[i](data, axes[i])
-    print(dist)
-
+results = check_distributions(data)
+print(results["Analysis"][0])
+fig = results["Figure"]
 fig.tight_layout()
-fig.show()
 fig.savefig("Distributions comparison.png", bbox_inches="tight")
 fig.show()
+
+results["Dataframe"].round(5).to_csv("Distributions comparison.csv", index=False)
+print(results["Dataframe"])

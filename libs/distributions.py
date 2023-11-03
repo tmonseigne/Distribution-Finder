@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from scipy import stats
 from scipy.optimize import minimize
@@ -18,7 +19,7 @@ def get_kde(d):
     :param d: Distribution
     :return: Les données du tracé de la courbe
     """
-    ax = plt.axes()                                                      # Creation d'un axe temporaire
+    fig, ax = plt.subplots(figsize=(16, 10), dpi=200)
     h = sns.kdeplot(d, ax=ax)                                            # Dessin du KDE de la seconde distribution
     return h.get_lines()[0].get_data()                                   # Récupération des courbes
 
@@ -43,6 +44,50 @@ def get_kde_curve_mse(d1, d2):
     """
     kde1, kde2 = get_kde(d1), get_kde(d2)                                # Récupération des courbes
     return np.mean((kde1[0] - kde2[0]) ** 2 + (kde1[1] - kde2[1]) ** 2)  # Calcul du MSE entre les points des courbes
+
+##################################################
+def check_distributions(data):
+    """
+    Lance une analyse sur toutes les distributions et renvoie une figure des histogrammes et le résultat des analyses
+    :param data: Distribution à analyser
+    :return: Un dictionnaire contennant les éléments suivants
+    - Figure : La figure contenant tous les histogrammes
+    - Analysis : Le résultat de toutes les distributions
+    - Dataframe : Dataframe de comparaison récapitulatif (arrondi à 10e-5)
+    """
+    distributions = [Normal, Log, Exponential, Power]
+    fig, axes = plt.subplots(2, 2, figsize=(16, 10), dpi=200)
+    axes = axes.ravel()
+    analysis = []
+    for i in range(len(distributions)):
+        analysis.append(distributions[i](data, axes[i]))
+    res = combine_distributions(analysis)
+    return dict(Figure=fig, Analysis=analysis, Dataframe=res)
+
+##################################################
+def combine_distributions(distributions):
+    """
+    Combine les différentes analyses de distributions en un seul dataframe
+    :param distributions: liste des analyses
+    :return: Dataframe contenant les informations calculées lors de l'analyse (arrondi à 10e-5)
+    """
+    res = []
+    columns = ["Distribution", "Parameters", "MSE", "Delta Kurtosis", "Delta Skewness",
+               "Kolmogorov-Smirnov Test", "Shapiro-Wilk Test", "Wasserstein Distance",
+               "Pearson Correlation Test on values", "Pearson Correlation Test on KDE",
+               "Anderson-Darling Test on values", "Anderson-Darling Test on KDE"]
+    for d in distributions:
+        row = [f"{d.type}"]
+        tmp = ""
+        for k, v in d.params.items():
+            tmp += f"{k} ({v}) "
+        row.append(tmp)
+        for i in range(2, len(columns)):
+            tmp = d.results[columns[i]]
+            if isinstance(tmp, dict):   row.append(d.results[columns[i]]["P"])
+            else:                       row.append(d.results[columns[i]])
+        res.append(row)
+    return pd.DataFrame(res, columns=columns).round(5).sort_values(by="MSE")
 
 # ==================================================
 # endregion Misc Functions
@@ -125,27 +170,27 @@ class _BaseDistribution(ABC):
         # Basic Tests
         self.results["MSE"] = get_kde_mse(self.data, self.data_gen)
         # self.results["MSE Curve"] = get_kde_curve_mse(self.data, self.data_gen)
-        self.results["Delta Kurtosis"] = np.fabs(np.round(stats.kurtosis(self.data) - stats.kurtosis(self.data_gen), 3))
-        self.results["Delta Skewness"] = np.fabs(np.round(stats.skew(self.data) - stats.skew(self.data_gen), 3))
+        self.results["Delta Kurtosis"] = np.fabs(stats.kurtosis(self.data) - stats.kurtosis(self.data_gen))
+        self.results["Delta Skewness"] = np.fabs(stats.skew(self.data) - stats.skew(self.data_gen))
         # Kolmogorov-Smirnov (KS) Test
         ks = np.round(stats.kstest(self.data, self.data_gen), 3)
-        self.results["Kolmogorov-Smirnov Test"] = f"P-Value : {ks[0]}, Statistic : {ks[1]}"
+        self.results["Kolmogorov-Smirnov Test"] = dict(P=ks[0], S=ks[1])
         # Shapiro-Wilk Test
         s, p = stats.shapiro(self.data)
         s_gen, p_gen = stats.shapiro(self.data_gen)
-        self.results["Shapiro-Wilk Test"] = f"Delta P-Value : {np.fabs(np.round(p - p_gen, 3))}, Delta Statistic : {np.fabs(np.round(s - s_gen, 3))}"
+        self.results["Shapiro-Wilk Test"] = dict(P=np.fabs(p - p_gen), S=np.fabs(s - s_gen))
         # Wasserstein Test
-        self.results["Wasserstein Distance"] = np.round(stats.wasserstein_distance(kde[1], kde_gen[1]), 3)
+        self.results["Wasserstein Distance"] = stats.wasserstein_distance(kde[1], kde_gen[1])
         # Pearson Correlation Test
         s, p = stats.pearsonr(self.data, self.data_gen)
-        self.results["Pearson Correlation Test on values"] = f"P-Value : {np.round(p, 3)}, Statistic : {np.round(p, 3)}"
+        self.results["Pearson Correlation Test on values"] = dict(P=p, S=s)
         s, p = stats.pearsonr(kde[1], kde_gen[1])
-        self.results["Pearson Correlation Test on KDE"] = f"P-Value : {np.round(p, 3)}, Statistic : {np.round(p, 3)}"
+        self.results["Pearson Correlation Test on KDE"] = dict(P=p, S=s)
         # Anderson-Darling Test
         r = stats.anderson_ksamp([self.data, self.data_gen])
-        self.results["Anderson-Darling Test on values"] = f"P-Value : {np.round(r.significance_level, 3)}, Statistic : {np.round(r.statistic, 3)}"
+        self.results["Anderson-Darling Test on values"] = dict(P=r.significance_level, S=r.statistic)
         r = stats.anderson_ksamp([kde[1], kde_gen[1]])
-        self.results["Anderson-Darling Test on KDE"] = f"P-Value : {np.round(r.significance_level, 3)}, Statistic : {np.round(r.statistic, 3)}"
+        self.results["Anderson-Darling Test on KDE"] =  dict(P=r.significance_level, S=r.statistic)
 
     def print_result(self):
         """
@@ -331,9 +376,14 @@ if __name__ == "__main__":
         dist = Power(np.random.power(alpha, n))
         print(f"Power Distribution with {n} sample : Original Scale ({alpha}) VS Founded Scale ({dist.params['Alpha']})")
         print(dist)
+
+    # Check
+    for n in sizes:
+        results = check_distributions(np.random.normal(mu, sigma, n))
+        print(results["Dataframe"])
 # ==================================================
 # endregion Tests
 # ==================================================
 
-# Liste des symboles à exporter
-__all__ = ["Normal", "Exponential", "Power", "Log"]
+# Liste des symboles à exporter (pour limiter les accès)
+__all__ = ["check_distributions", "Normal", "Exponential", "Power", "Log"]

@@ -1,5 +1,6 @@
 """ Classes des distributions """
 
+import warnings
 from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
@@ -165,32 +166,34 @@ class _BaseDistribution(ABC):
 
     ##################################################
     def get_results(self):
-        """ Calcule la différence entre la distribution stockée et la distribution générée """
-        kde, kde_gen = get_kde(self.data), get_kde(self.data_gen)  # Récupération des courbes
-        # Basic Tests
-        self.results["MSE"] = get_kde_mse(self.data, self.data_gen)
-        # self.results["MSE Curve"] = get_kde_curve_mse(self.data, self.data_gen)
-        self.results["Delta Kurtosis"] = np.fabs(stats.kurtosis(self.data) - stats.kurtosis(self.data_gen))
-        self.results["Delta Skewness"] = np.fabs(stats.skew(self.data) - stats.skew(self.data_gen))
-        # Kolmogorov-Smirnov (KS) Test
-        ks = np.round(stats.kstest(self.data, self.data_gen), 3)
-        self.results["Kolmogorov-Smirnov Test"] = dict(P=ks[0], S=ks[1])
-        # Shapiro-Wilk Test
-        s, p = stats.shapiro(self.data)
-        s_gen, p_gen = stats.shapiro(self.data_gen)
-        self.results["Shapiro-Wilk Test"] = dict(P=np.fabs(p - p_gen), S=np.fabs(s - s_gen))
-        # Wasserstein Test
-        self.results["Wasserstein Distance"] = stats.wasserstein_distance(kde[1], kde_gen[1])
-        # Pearson Correlation Test
-        s, p = stats.pearsonr(self.data, self.data_gen)
-        self.results["Pearson Correlation Test on values"] = dict(P=p, S=s)
-        s, p = stats.pearsonr(kde[1], kde_gen[1])
-        self.results["Pearson Correlation Test on KDE"] = dict(P=p, S=s)
-        # Anderson-Darling Test
-        r = stats.anderson_ksamp([self.data, self.data_gen])
-        self.results["Anderson-Darling Test on values"] = dict(P=r.significance_level, S=r.statistic)
-        r = stats.anderson_ksamp([kde[1], kde_gen[1]])
-        self.results["Anderson-Darling Test on KDE"] =  dict(P=r.significance_level, S=r.statistic)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
+            """ Calcule la différence entre la distribution stockée et la distribution générée """
+            kde, kde_gen = get_kde(self.data), get_kde(self.data_gen)  # Récupération des courbes
+            # Basic Tests
+            self.results["MSE"] = get_kde_mse(self.data, self.data_gen)
+            # self.results["MSE Curve"] = get_kde_curve_mse(self.data, self.data_gen)
+            self.results["Delta Kurtosis"] = np.fabs(stats.kurtosis(self.data) - stats.kurtosis(self.data_gen))
+            self.results["Delta Skewness"] = np.fabs(stats.skew(self.data) - stats.skew(self.data_gen))
+            # Kolmogorov-Smirnov (KS) Test
+            ks = np.round(stats.kstest(self.data, self.data_gen), 3)
+            self.results["Kolmogorov-Smirnov Test"] = dict(P=ks[0], S=ks[1])
+            # Shapiro-Wilk Test
+            s, p = stats.shapiro(self.data)
+            s_gen, p_gen = stats.shapiro(self.data_gen)
+            self.results["Shapiro-Wilk Test"] = dict(P=np.fabs(p - p_gen), S=np.fabs(s - s_gen))
+            # Wasserstein Test
+            self.results["Wasserstein Distance"] = stats.wasserstein_distance(kde[1], kde_gen[1])
+            # Pearson Correlation Test
+            s, p = stats.pearsonr(self.data, self.data_gen)
+            self.results["Pearson Correlation Test on values"] = dict(P=p, S=s)
+            s, p = stats.pearsonr(kde[1], kde_gen[1])
+            self.results["Pearson Correlation Test on KDE"] = dict(P=p, S=s)
+            # Anderson-Darling Test
+            r = stats.anderson_ksamp([self.data, self.data_gen])
+            self.results["Anderson-Darling Test on values"] = dict(P=r.significance_level, S=r.statistic)
+            r = stats.anderson_ksamp([kde[1], kde_gen[1]])
+            self.results["Anderson-Darling Test on KDE"] = dict(P=r.significance_level, S=r.statistic)
 
     def print_result(self):
         """
@@ -255,7 +258,9 @@ class Log(_BaseDistribution):
 
     ##################################################
     def _find_parameters(self):
-        minimize(self._cost, np.array([1.0, 1.0]), method='Nelder-Mead')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
+            minimize(self._cost, np.array([1.0, 1.0]), method='Nelder-Mead')
         self._make_distribution()
 
     ##################################################
@@ -288,7 +293,9 @@ class Exponential(_BaseDistribution):
 
     ##################################################
     def _find_parameters(self):
-        minimize(self._cost, np.array([1.0]), method='Nelder-Mead')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
+            minimize(self._cost, np.array([1.0]), method='Nelder-Mead')
         self._make_distribution()
 
     ##################################################
@@ -319,7 +326,9 @@ class Power(_BaseDistribution):
 
     ##################################################
     def _find_parameters(self):
-        minimize(self._cost, np.array([1.0, 1.0]), method='Nelder-Mead')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
+            minimize(self._cost, np.array([1.0, 1.0]), method='Nelder-Mead')
         self._make_distribution()
 
     ##################################################

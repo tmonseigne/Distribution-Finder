@@ -5,6 +5,7 @@ import os
 import numpy as np
 
 from libs.distributions import check_distributions
+from libs.report import make_report
 
 res_path = "Output"
 os.makedirs(res_path, exist_ok=True)  # Créer le dossier de résultat (la première fois, il n'existe pas)
@@ -21,5 +22,6 @@ for k, v in datas.items():
     fig.tight_layout()
     fig.savefig(os.path.join(res_path, f"{k} Distribution ({N} samples) Histograms.png"), bbox_inches="tight")
     results["Dataframe"].to_csv(os.path.join(res_path, f"{k} Distribution ({N} samples) Results.csv"), index=False)
+    make_report(v, results, f"{k} Distribution ({N} samples) Report", res_path)
 
 print("Fini")

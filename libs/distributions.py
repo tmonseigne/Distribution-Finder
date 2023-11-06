@@ -54,7 +54,7 @@ def check_distributions(data):
     :return: Un dictionnaire contennant les éléments suivants
     - Figure : La figure contenant tous les histogrammes
     - Analysis : Le résultat de toutes les distributions
-    - Dataframe : Dataframe de comparaison récapitulatif (arrondi à 10e-5)
+    - Dataframe : Dataframe récapitulatif (trié et arrondi à 10e-5)
     """
     distributions = [Normal, Log, Exponential, Power]
     fig, axes = plt.subplots(2, 2, figsize=(16, 10), dpi=200)
@@ -70,7 +70,8 @@ def combine_distributions(distributions):
     """
     Combine les différentes analyses de distributions en un seul dataframe
     :param distributions: liste des analyses
-    :return: Dataframe contenant les informations calculées lors de l'analyse (arrondi à 10e-5)
+    :return: Dataframe contenant les informations calculées lors de l'analyse.
+    Les éléments sont triés par MSE puis kurtosis et skewness en cas d'égalité et arrondi à 10e-5.
     """
     res = []
     columns = ["Distribution", "Parameters", "MSE", "Delta Kurtosis", "Delta Skewness",
@@ -88,7 +89,7 @@ def combine_distributions(distributions):
             if isinstance(tmp, dict):   row.append(d.results[columns[i]]["P"])
             else:                       row.append(d.results[columns[i]])
         res.append(row)
-    return pd.DataFrame(res, columns=columns).round(5).sort_values(by="MSE")
+    return pd.DataFrame(res, columns=columns).sort_values(by=["MSE", "Delta Kurtosis", "Delta Skewness"]).round(5)
 
 # ==================================================
 # endregion Misc Functions
@@ -104,7 +105,6 @@ class _BaseDistribution(ABC):
     def __init__(self, data=None, ax=None):
         self.type = self._get_type()
         self.data, self.data_gen = None, None
-        self.hist, self.hist_gen = None, None
         self.params = dict()
         self.results = dict()
         if data is not None: self.fit(data, ax)
@@ -140,7 +140,7 @@ class _BaseDistribution(ABC):
         """
         sns.histplot(self.data, kde=True, ax=ax)
         sns.histplot(self.data_gen, kde=True, ax=ax)
-        ax.set_title(f"{self.type} Distribution")
+        ax.set_title(f"{self.type} Distribution (MSE: {np.round(self.results['MSE'], 3)})")
         ax.legend(["data", f"{self.type} Distribution"], title="Distribution")
 
     @abstractmethod
@@ -166,6 +166,7 @@ class _BaseDistribution(ABC):
 
     ##################################################
     def get_results(self):
+        """ Calcule différentes métriques de comparaison de distributions """
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
             """ Calcule la différence entre la distribution stockée et la distribution générée """
@@ -351,7 +352,7 @@ if __name__ == "__main__":
     sizes = [10, 100, 1000]
     # Normal Distribution
     print("\n**************************************************")
-    print("*** Normal Distribution : ***")
+    print("********** Normal Distribution : **********")
     mu, sigma = 12.6, 4.1
     for n in sizes:
         dist = Normal(np.random.normal(mu, sigma, n))
@@ -361,7 +362,7 @@ if __name__ == "__main__":
 
     # Log-Normal Distribution
     print("\n**************************************************")
-    print("*** Log-Normal Distribution : ***")
+    print("********** Log-Normal Distribution : **********")
     mu, sigma = 6.4, 1.0
     for n in sizes:
         dist = Log(np.random.lognormal(mu, sigma, n))
@@ -370,7 +371,7 @@ if __name__ == "__main__":
 
     # Exponential Distribution
     print("\n**************************************************")
-    print("*** Exponential Distribution : ***")
+    print("********** Exponential Distribution : **********")
     scale = 3.2
     for n in sizes:
         dist = Exponential(np.random.exponential(scale, n))
@@ -379,14 +380,14 @@ if __name__ == "__main__":
 
     # Power Distribution
     print("\n**************************************************")
-    print("*** Power Distribution : ***")
+    print("********** Power Distribution : **********")
     alpha = 2.5
     for n in sizes:
         dist = Power(np.random.power(alpha, n))
-        print(f"Power Distribution with {n} sample : Original Scale ({alpha}) VS Founded Scale ({dist.params['Alpha']})")
+        print(f"Power Distribution with {n} sample : Original Alpha ({alpha}) VS Founded Alpha ({dist.params['Alpha']})")
         print(dist)
 
-    # Check
+    # Check Distributions
     for n in sizes:
         results = check_distributions(np.random.normal(mu, sigma, n))
         print(results["Dataframe"])
@@ -395,4 +396,4 @@ if __name__ == "__main__":
 # ==================================================
 
 # Liste des symboles à exporter (pour limiter les accès)
-__all__ = ["check_distributions", "Normal", "Exponential", "Power", "Log"]
+# __all__ = ["check_distributions", "Normal", "Exponential", "Power", "Log"]

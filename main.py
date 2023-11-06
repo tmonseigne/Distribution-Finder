@@ -1,19 +1,25 @@
 """ Fichier principal """
 
-import matplotlib.pyplot as plt
+import os
+
 import numpy as np
 
 from libs.distributions import check_distributions
 
+res_path = "Output"
+os.makedirs(res_path, exist_ok=True)  # Créer le dossier de résultat (la première fois, il n'existe pas)
+
 N = 1000
-data = np.random.normal(12.6, 4.1, N)
+datas = {"Normal":      np.random.normal(12.6, 4.1, N),
+         "Log":         np.random.lognormal(6.4, 1.0, N),
+         "Exponential": np.random.exponential(3.2, N),
+         "Power":       np.random.power(2.5, N)}
 
-results = check_distributions(data)
-print(results["Analysis"][0])
-fig = results["Figure"]
-fig.tight_layout()
-fig.savefig("Distributions comparison.png", bbox_inches="tight")
-fig.show()
+for k, v in datas.items():
+    results = check_distributions(v)
+    fig = results["Figure"]
+    fig.tight_layout()
+    fig.savefig(os.path.join(res_path, f"{k} Distribution ({N} samples) Histograms.png"), bbox_inches="tight")
+    results["Dataframe"].to_csv(os.path.join(res_path, f"{k} Distribution ({N} samples) Results.csv"), index=False)
 
-results["Dataframe"].round(5).to_csv("Distributions comparison.csv", index=False)
-print(results["Dataframe"])
+print("Fini")

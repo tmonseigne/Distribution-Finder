@@ -1,44 +1,44 @@
+""" Fichier principal avec UI """
+import os
 import sys
-from PyQt6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QFileDialog,
-    QTableWidget,
-    QTableWidgetItem,
-    QVBoxLayout,
-    QWidget,
-    QLabel
-)
-from PyQt6.QtGui import QAction
 
 import pandas as pd
+from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 
-class CSVViewer(QMainWindow):
+from libs.distributions import check_distributions
+from libs.report import make_report
+
+class DistributionFinderUI(QMainWindow):
+    """ Classe de mon interface """
     def __init__(self):
         super().__init__()
 
         self.status = QLabel()
         self.dataframe = pd.DataFrame()
         self.table = QTableWidget()
+        self.path = ""
+        self.file_name = ""
         self.initUI()
 
     def initUI(self):
+        """ Initialize l'interface """
         self.setWindowTitle("Distribution Finder")
         self.resize(800, 600)  # Définition de la taille par défaut
 
         menubar = self.menuBar()
         open_action = QAction('Ouvrir CSV (Ctrl+O)', self)
-        open_action.setShortcut('Ctrl+O')               # Raccourci Ctrl+O pour Ouvrir
-        open_action.triggered.connect(self.openCSV)     # Connecter à la méthode openCSV
+        open_action.setShortcut('Ctrl+O')  # Raccourci Ctrl+O pour Ouvrir
+        open_action.triggered.connect(self.openCSV)  # Connecter à la méthode openCSV
         menubar.addAction(open_action)
 
         process_action = QAction('Process (Ctrl+P)', self)
-        process_action.setShortcut('Ctrl+P')            # Raccourci Ctrl+O pour Ouvrir
+        process_action.setShortcut('Ctrl+P')  # Raccourci Ctrl+O pour Ouvrir
         process_action.triggered.connect(self.process)  # Connecter à la méthode process
         menubar.addAction(process_action)
 
         # Ajout de la barre d'état
-        self.status.setText('Prêt')          # Message par défaut
+        self.status.setText('Prêt')  # Message par défaut
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -50,6 +50,7 @@ class CSVViewer(QMainWindow):
         layout.addWidget(self.status)
 
     def openCSV(self):
+        """ Ouvre un fichier CSV """
         file_path, _ = QFileDialog.getOpenFileName(self, "Ouvrir CSV", "", "CSV Files (*.csv)")
         if file_path:
             self.status.setText(f"Ouverture du fichier \"{file_path}\".")
@@ -57,7 +58,12 @@ class CSVViewer(QMainWindow):
             self.status.setText(f"Fichier \"{file_path}\" Ouvert.")
 
     def loadCSV(self, file_path):
+        """ Charge un fichier CSV """
         self.dataframe = pd.read_csv(file_path)  # Charger le CSV dans le DataFrame
+        self.path, self.file_name = os.path.split(file_path)  # Séparer le chemin du fichier et le nom
+        self.file_name = os.path.splitext(self.file_name)[0]  # Obtention du nom de fichier sans extension
+        self.path = os.path.join(self.path, "Output")
+        os.makedirs(self.path, exist_ok=True)  # Créer le dossier de résultat (la première fois, il n'existe pas)
 
         self.table.setRowCount(0)
         self.table.setColumnCount(0)
@@ -72,25 +78,27 @@ class CSVViewer(QMainWindow):
         self.table.resizeColumnsToContents()
 
     def process(self):
+        """ Calcul des distributions et génération du rapport """
         selected_items = self.table.selectedItems()
         if selected_items:
             column = set(item.column() for item in selected_items)
             if len(column) == 1:
-                col_index = list(column)[0]
-                print(f"Selected column : {col_index}")
+                i = list(column)[0]
+                col_name = self.dataframe.columns[i]
+                data = self.dataframe.iloc[:, i]
+                file_name = f"{self.file_name}-{col_name}"
+                self.status.setText(f"Colonne {col_name} ({i}) sélectionnée, calcul en cours...")
+                results = check_distributions(data)
+                results["Dataframe"].to_csv(os.path.join(self.path, f"{file_name}_Results.csv"), index=False)
+                make_report(data, results, f"{file_name}_Report", self.path)
+                self.status.setText(f"Rapport généré ici \"{self.path}\" pour la colonne {col_name} ({i}).")
             else:
-                print("Please select only one column.")
+                self.status.setText(f"Veuillez sélectionner une seule colonne.")
         else:
-            print("No column selected.")
-
-def main():
-    try:
-        app = QApplication(sys.argv)
-        window = CSVViewer()
-        window.show()
-        sys.exit(app.exec())
-    except Exception as e:
-        print("An error occurred:", e)
+            self.status.setText(f"Aucune colonne sélectionnée.")
 
 if __name__ == "__main__":
-    main()
+    app = QApplication(sys.argv)
+    window = DistributionFinderUI()
+    window.show()
+    sys.exit(app.exec())

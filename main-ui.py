@@ -9,12 +9,13 @@ from PyQt6.QtWidgets import (
     QWidget,
     QPushButton,
 )
-import csv
+import pandas as pd
 
 class CSVViewer(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.dataframe = pd.DataFrame()
         self.table = None
         self.initUI()
 
@@ -45,19 +46,18 @@ class CSVViewer(QMainWindow):
             self.loadCSV(file_path)
 
     def loadCSV(self, file_path):
-        with open(file_path, newline='', encoding='utf-8') as file:
-            self.table.setRowCount(0)
-            self.table.setColumnCount(0)
+        self.dataframe = pd.read_csv(file_path)  # Charger le CSV dans le DataFrame
 
-            for row_num, row_data in enumerate(csv.reader(file)):
-                self.table.insertRow(row_num)
-                if row_num == 0:
-                    self.table.setColumnCount(len(row_data))
-                for col_num, col_data in enumerate(row_data):
-                    item = QTableWidgetItem(col_data)
-                    self.table.setItem(row_num, col_num, item)
+        self.table.setRowCount(0)
+        self.table.setColumnCount(0)
 
-        self.table.setHorizontalHeaderLabels(next(csv.reader(open(file_path))))
+        for row_num in range(len(self.dataframe)):
+            self.table.insertRow(row_num)
+            if row_num == 0: self.table.setColumnCount(len(self.dataframe.columns))
+            for col_num in range(len(self.dataframe.columns)):
+                item = QTableWidgetItem(str(self.dataframe.iloc[row_num, col_num]))
+                self.table.setItem(row_num, col_num, item)
+        self.table.setHorizontalHeaderLabels(self.dataframe.columns)
 
     def process(self):
         selected_items = self.table.selectedItems()
@@ -65,8 +65,7 @@ class CSVViewer(QMainWindow):
             column = set(item.column() for item in selected_items)
             if len(column) == 1:
                 col_index = list(column)[0]
-                column_data = [self.table.item(row, col_index).text() for row in range(self.table.rowCount())]
-                print(f"Selected column data: {column_data}")
+                print(f"Selected column : {col_index}")
             else:
                 print("Please select only one column.")
         else:

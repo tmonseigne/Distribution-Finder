@@ -7,20 +7,38 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
-    QPushButton,
+    QLabel
 )
+from PyQt6.QtGui import QAction
+
 import pandas as pd
 
 class CSVViewer(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.status = QLabel()
         self.dataframe = pd.DataFrame()
-        self.table = None
+        self.table = QTableWidget()
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("CSV Viewer")
+        self.setWindowTitle("Distribution Finder")
+        self.resize(800, 600)  # Définition de la taille par défaut
+
+        menubar = self.menuBar()
+        open_action = QAction('Ouvrir CSV (Ctrl+O)', self)
+        open_action.setShortcut('Ctrl+O')               # Raccourci Ctrl+O pour Ouvrir
+        open_action.triggered.connect(self.openCSV)     # Connecter à la méthode openCSV
+        menubar.addAction(open_action)
+
+        process_action = QAction('Process (Ctrl+P)', self)
+        process_action.setShortcut('Ctrl+P')            # Raccourci Ctrl+O pour Ouvrir
+        process_action.triggered.connect(self.process)  # Connecter à la méthode process
+        menubar.addAction(process_action)
+
+        # Ajout de la barre d'état
+        self.status.setText('Prêt')          # Message par défaut
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -28,22 +46,15 @@ class CSVViewer(QMainWindow):
         layout = QVBoxLayout()
         central_widget.setLayout(layout)
 
-        open_button = QPushButton("Open CSV")
-        open_button.clicked.connect(self.openCSV)
-        layout.addWidget(open_button)
-
-        open_button = QPushButton("Process")
-        open_button.clicked.connect(self.process)
-        layout.addWidget(open_button)
-
-        self.table = QTableWidget()
         layout.addWidget(self.table)
+        layout.addWidget(self.status)
 
     def openCSV(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open CSV", "", "CSV Files (*.csv)")
-
+        file_path, _ = QFileDialog.getOpenFileName(self, "Ouvrir CSV", "", "CSV Files (*.csv)")
         if file_path:
+            self.status.setText(f"Ouverture du fichier \"{file_path}\".")
             self.loadCSV(file_path)
+            self.status.setText(f"Fichier \"{file_path}\" Ouvert.")
 
     def loadCSV(self, file_path):
         self.dataframe = pd.read_csv(file_path)  # Charger le CSV dans le DataFrame
@@ -58,6 +69,7 @@ class CSVViewer(QMainWindow):
                 item = QTableWidgetItem(str(self.dataframe.iloc[row_num, col_num]))
                 self.table.setItem(row_num, col_num, item)
         self.table.setHorizontalHeaderLabels(self.dataframe.columns)
+        self.table.resizeColumnsToContents()
 
     def process(self):
         selected_items = self.table.selectedItems()

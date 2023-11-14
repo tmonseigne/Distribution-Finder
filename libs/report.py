@@ -4,6 +4,7 @@ import os.path
 import numpy as np
 import pandas as pd
 
+##################################################
 def get_distribution_types(analysis: dict):
     """
     Récupère la liste des distributions testées
@@ -15,6 +16,7 @@ def get_distribution_types(analysis: dict):
         types.append(a.type)
     return types
 
+##################################################
 def make_report(distribution: np.ndarray, analysis: dict, name: str = "Report", path: str = ""):
     """
     Créé un rapport markdown

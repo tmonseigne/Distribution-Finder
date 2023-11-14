@@ -9,36 +9,41 @@ from PyQt6.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QTab
 from libs.distributions import check_distributions
 from libs.report import make_report
 
+result_path = "Output"
+
+##################################################
 class DistributionFinderUI(QMainWindow):
     """ Classe de mon interface """
+
+    ##################################################
     def __init__(self):
         super().__init__()
 
+        self.table = QTableWidget()
         self.status = QLabel()
         self.dataframe = pd.DataFrame()
-        self.table = QTableWidget()
         self.path = ""
         self.file_name = ""
         self.initUI()
 
+    ##################################################
     def initUI(self):
         """ Initialize l'interface """
-        self.setWindowTitle("Distribution Finder")
-        self.resize(800, 600)  # Définition de la taille par défaut
+        self.setWindowTitle("Distribution Finder")      # Titre de la fenêtre
+        self.resize(800, 600)                           # Définition de la taille par défaut
 
         menubar = self.menuBar()
         open_action = QAction('Ouvrir CSV (Ctrl+O)', self)
-        open_action.setShortcut('Ctrl+O')  # Raccourci Ctrl+O pour Ouvrir
-        open_action.triggered.connect(self.openCSV)  # Connecter à la méthode openCSV
+        open_action.setShortcut('Ctrl+O')               # Raccourci Ctrl+O pour Ouvrir
+        open_action.triggered.connect(self.openCSV)     # Connecter à la méthode openCSV
         menubar.addAction(open_action)
 
         process_action = QAction('Process (Ctrl+P)', self)
-        process_action.setShortcut('Ctrl+P')  # Raccourci Ctrl+O pour Ouvrir
+        process_action.setShortcut('Ctrl+P')            # Raccourci Ctrl+P pour lancer le process
         process_action.triggered.connect(self.process)  # Connecter à la méthode process
         menubar.addAction(process_action)
 
-        # Ajout de la barre d'état
-        self.status.setText('Prêt')  # Message par défaut
+        self.status.setText('Prêt')                     # Message par défaut dans la barre d'état
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -46,37 +51,39 @@ class DistributionFinderUI(QMainWindow):
         layout = QVBoxLayout()
         central_widget.setLayout(layout)
 
-        layout.addWidget(self.table)
-        layout.addWidget(self.status)
+        layout.addWidget(self.table)                    # Ajout du tableau (vide au début)
+        layout.addWidget(self.status)                   # Ajout de la barre d'état
 
+    ##################################################
     def openCSV(self):
         """ Ouvre un fichier CSV """
         file_path, _ = QFileDialog.getOpenFileName(self, "Ouvrir CSV", "", "CSV Files (*.csv)")
         if file_path:
             self.status.setText(f"Ouverture du fichier \"{file_path}\".")
             self.loadCSV(file_path)
-            self.status.setText(f"Fichier \"{file_path}\" Ouvert.")
+            self.status.setText(f"Fichier \"{file_path}\" ouvert.")
 
+    ##################################################
     def loadCSV(self, file_path):
         """ Charge un fichier CSV """
-        self.dataframe = pd.read_csv(file_path)  # Charger le CSV dans le DataFrame
+        self.dataframe = pd.read_csv(file_path)               # Charger le CSV dans le DataFrame
         self.path, self.file_name = os.path.split(file_path)  # Séparer le chemin du fichier et le nom
         self.file_name = os.path.splitext(self.file_name)[0]  # Obtention du nom de fichier sans extension
-        self.path = os.path.join(self.path, "Output")
-        os.makedirs(self.path, exist_ok=True)  # Créer le dossier de résultat (la première fois, il n'existe pas)
+        self.path = os.path.join(self.path, result_path)      # Ajout du dossier de résultat au chemin
+        os.makedirs(self.path, exist_ok=True)                 # Créer le dossier de résultat (la première fois, il n'existe pas)
 
+        self.table.setColumnCount(len(self.dataframe.columns))
+        self.table.setHorizontalHeaderLabels(self.dataframe.columns)
         self.table.setRowCount(0)
-        self.table.setColumnCount(0)
 
         for row_num in range(len(self.dataframe)):
             self.table.insertRow(row_num)
-            if row_num == 0: self.table.setColumnCount(len(self.dataframe.columns))
             for col_num in range(len(self.dataframe.columns)):
                 item = QTableWidgetItem(str(self.dataframe.iloc[row_num, col_num]))
                 self.table.setItem(row_num, col_num, item)
-        self.table.setHorizontalHeaderLabels(self.dataframe.columns)
         self.table.resizeColumnsToContents()
 
+    ##################################################
     def process(self):
         """ Calcul des distributions et génération du rapport """
         selected_items = self.table.selectedItems()
@@ -97,6 +104,7 @@ class DistributionFinderUI(QMainWindow):
         else:
             self.status.setText(f"Aucune colonne sélectionnée.")
 
+##################################################
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = DistributionFinderUI()

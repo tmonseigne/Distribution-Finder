@@ -94,11 +94,12 @@ class DistributionFinderUI(QMainWindow):
                 col_name = self.dataframe.columns[i]
                 data = self.dataframe.iloc[:, i]
                 file_name = f"{self.file_name}-{col_name}"
-                self.status.setText(f"Colonne {col_name} ({i}) sélectionnée, calcul en cours...")
+                self.status.setText(f"Colonne {i} ({col_name}) sélectionnée, calcul en cours...")
                 results = check_distributions(data)
                 results["Dataframe"].to_csv(os.path.join(self.path, f"{file_name}_Results.csv"), index=False)
                 make_report(data, results, f"{file_name}_Report", self.path)
-                self.status.setText(f"Rapport généré ici \"{self.path}\" pour la colonne {col_name} ({i}).")
+                self.status.setText(f"Rapport généré ici \"{self.path}\" pour la colonne {i} ({col_name}). "
+                                    f"Distribution la plus proche : {results['Dataframe'].iloc[0][0]}.")
             else:
                 self.status.setText(f"Veuillez sélectionner une seule colonne.")
         else:

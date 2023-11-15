@@ -56,8 +56,8 @@ def check_distributions(data):
     - Analysis : Le résultat de toutes les distributions
     - Dataframe : Dataframe récapitulatif (trié et arrondi à 10e-5)
     """
-    distributions = [Normal, Log, Exponential, Power]
-    fig, axes = plt.subplots(2, 2, figsize=(16, 10), dpi=200)
+    distributions = [Normal, Log, Exponential, Power, Beta, Gamma]
+    fig, axes = plt.subplots(3, 2, figsize=(16, 10), dpi=200)
     axes = axes.ravel()
     analysis = []
     for i in range(len(distributions)):
@@ -252,10 +252,10 @@ class Log(_BaseDistribution):
 
     ##################################################
     def _cost(self, params):
-        self.params["Scale"] = params[0]
+        self.params["Shape"] = params[0]
         # self._make_distribution()
         # return get_kde_mse(self.data, self.data_gen)
-        return -np.sum(np.log(stats.lognorm(s=self.params["Scale"]).pdf(self.data)))
+        return -np.sum(np.log(stats.lognorm(s=self.params["Shape"]).pdf(self.data)))
 
     ##################################################
     def _find_parameters(self):
@@ -266,7 +266,7 @@ class Log(_BaseDistribution):
 
     ##################################################
     def _make_distribution(self):
-        self.data_gen = np.random.lognormal(self.params["Scale"], 1.0, len(self.data))
+        self.data_gen = np.random.lognormal(self.params["Shape"], 1.0, len(self.data))
 
 # ==================================================
 # endregion Log Distribution Class
@@ -343,6 +343,73 @@ class Power(_BaseDistribution):
 
 # ==================================================
 # endregion Power Distribution Class
+# ==================================================
+
+# ==================================================
+# region Beta Distribution Class
+# ==================================================
+class Beta(_BaseDistribution):
+
+    ##################################################
+    def __init__(self, data=None, ax=None):
+        super().__init__(data, ax)
+
+    ##################################################
+    @staticmethod
+    def _get_type(): return "Beta"
+
+    ##################################################
+    def _cost(self, params):
+        self.params["A"] = params[0]
+        self.params["B"] = params[1]
+        return -np.sum(np.log(stats.beta(self.params["A"], self.params["B"]).pdf(self.data)))
+
+    ##################################################
+    def _find_parameters(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
+            minimize(self._cost, np.array([1.0, 1.0]), method='Nelder-Mead')
+        self._make_distribution()
+
+    ##################################################
+    def _make_distribution(self):
+        self.data_gen = np.random.beta(self.params["A"], self.params["B"], len(self.data))
+
+# ==================================================
+# endregion Beta Distribution Class
+# ==================================================
+
+# ==================================================
+# region Gamma Distribution Class
+# ==================================================
+class Gamma(_BaseDistribution):
+
+    ##################################################
+    def __init__(self, data=None, ax=None):
+        super().__init__(data, ax)
+
+    ##################################################
+    @staticmethod
+    def _get_type(): return "Gamma"
+
+    ##################################################
+    def _cost(self, params):
+        self.params["Shape"] = params[0]
+        return -np.sum(np.log(stats.gamma(self.params["Shape"]).pdf(self.data)))
+
+    ##################################################
+    def _find_parameters(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
+            minimize(self._cost, np.array([1.0]), method='Nelder-Mead')
+        self._make_distribution()
+
+    ##################################################
+    def _make_distribution(self):
+        self.data_gen = np.random.gamma(self.params["Shape"], 1.0, len(self.data))
+
+# ==================================================
+# endregion Gamma Distribution Class
 # ==================================================
 
 # ==================================================

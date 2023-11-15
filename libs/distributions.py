@@ -25,15 +25,16 @@ def get_kde(d):
     return h.get_lines()[0].get_data()                                   # Récupération des courbes
 
 ##################################################
-def get_kde_mse(d1, d2):
+def get_kde_mse(d1, d2, axis: int = 1):
     """
-    Calcul de la MSE (Mean Square Error) entre les coordonnées Y des courbes KDE (Kernel Density Estimation) de deux distributions
+    Calcul de la MSE (Mean Square Error) entre les coordonnées X ou Y des courbes KDE (Kernel Density Estimation) de deux distributions
     :param d1: Première Distribution
     :param d2: Seconde Distribution
+    :param axis: Axe du calcul (0 pour X 1 pour Y), 1 par défaut
     :return: valeur de la MSE
     """
     kde1, kde2 = get_kde(d1), get_kde(d2)                                # Récupération des courbes
-    return np.mean((kde1[1] - kde2[1]) ** 2)                             # Calcul du MSE entre les coordonnées Y des courbes
+    return np.mean((kde1[axis] - kde2[axis]) ** 2)                       # Calcul du MSE entre les coordonnées Y des courbes
 
 ##################################################
 def get_kde_curve_mse(d1, d2):
@@ -56,7 +57,8 @@ def check_distributions(data):
     - Analysis : Le résultat de toutes les distributions
     - Dataframe : Dataframe récapitulatif (trié et arrondi à 10e-5)
     """
-    distributions = [Normal, Log, Exponential, Power, Beta, Gamma]
+    distributions = [Normal, Log, Exponential,
+                     Power, Beta, Gamma]
     fig, axes = plt.subplots(3, 2, figsize=(16, 10), dpi=200)
     axes = axes.ravel()
     analysis = []
@@ -74,7 +76,7 @@ def combine_distributions(distributions):
     Les éléments sont triés par MSE puis kurtosis et skewness en cas d'égalité et arrondi à 10e-5.
     """
     res = []
-    columns = ["Distribution", "Parameters", "MSE", "Delta Kurtosis", "Delta Skewness",
+    columns = ["Distribution", "Parameters", "MSE", "MSE Scale", "MSE Curve", "Delta Kurtosis", "Delta Skewness",
                "Kolmogorov-Smirnov Test", "Shapiro-Wilk Test", "Wasserstein Distance",
                "Pearson Correlation Test on values", "Pearson Correlation Test on KDE",
                "Anderson-Darling Test on values", "Anderson-Darling Test on KDE"]
@@ -89,7 +91,7 @@ def combine_distributions(distributions):
             if isinstance(tmp, dict):   row.append(d.results[columns[i]]["P"])
             else:                       row.append(d.results[columns[i]])
         res.append(row)
-    return pd.DataFrame(res, columns=columns).sort_values(by=["MSE", "Delta Kurtosis", "Delta Skewness"]).round(5)
+    return pd.DataFrame(res, columns=columns).sort_values(by=["MSE", "MSE Scale", "MSE Curve", "Delta Kurtosis", "Delta Skewness"]).round(5)
 
 # ==================================================
 # endregion Misc Functions
@@ -173,7 +175,8 @@ class _BaseDistribution(ABC):
             kde, kde_gen = get_kde(self.data), get_kde(self.data_gen)  # Récupération des courbes
             # Basic Tests
             self.results["MSE"] = get_kde_mse(self.data, self.data_gen)
-            # self.results["MSE Curve"] = get_kde_curve_mse(self.data, self.data_gen)
+            self.results["MSE Scale"] = get_kde_mse(self.data, self.data_gen, 0)
+            self.results["MSE Curve"] = get_kde_curve_mse(self.data, self.data_gen)
             self.results["Delta Kurtosis"] = np.fabs(stats.kurtosis(self.data) - stats.kurtosis(self.data_gen))
             self.results["Delta Skewness"] = np.fabs(stats.skew(self.data) - stats.skew(self.data_gen))
             # Kolmogorov-Smirnov (KS) Test
@@ -214,11 +217,6 @@ class _BaseDistribution(ABC):
 # region Normal Distribution Class
 # ==================================================
 class Normal(_BaseDistribution):
-
-    ##################################################
-    def __init__(self, data=None, ax=None):
-        super().__init__(data, ax)
-
     ##################################################
     @staticmethod
     def _get_type(): return "Normal"
@@ -242,10 +240,6 @@ class Normal(_BaseDistribution):
 # region Log Distribution Class
 # ==================================================
 class Log(_BaseDistribution):
-    ##################################################
-    def __init__(self, data=None, ax=None):
-        super().__init__(data, ax)
-
     ##################################################
     @staticmethod
     def _get_type(): return "Log"
@@ -276,11 +270,6 @@ class Log(_BaseDistribution):
 # region Exponential Distribution Class
 # ==================================================
 class Exponential(_BaseDistribution):
-
-    ##################################################
-    def __init__(self, data=None, ax=None):
-        super().__init__(data, ax)
-
     ##################################################
     @staticmethod
     def _get_type(): return "Exponential"
@@ -311,11 +300,6 @@ class Exponential(_BaseDistribution):
 # region Power Distribution Class
 # ==================================================
 class Power(_BaseDistribution):
-
-    ##################################################
-    def __init__(self, data=None, ax=None):
-        super().__init__(data, ax)
-
     ##################################################
     @staticmethod
     def _get_type(): return "Power"
@@ -329,7 +313,7 @@ class Power(_BaseDistribution):
     def _find_parameters(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
-            minimize(self._cost, np.array([1.0, 1.0]), method='Nelder-Mead')
+            minimize(self._cost, np.array([1.0]), method='Nelder-Mead')
         self._make_distribution()
 
     ##################################################
@@ -349,11 +333,6 @@ class Power(_BaseDistribution):
 # region Beta Distribution Class
 # ==================================================
 class Beta(_BaseDistribution):
-
-    ##################################################
-    def __init__(self, data=None, ax=None):
-        super().__init__(data, ax)
-
     ##################################################
     @staticmethod
     def _get_type(): return "Beta"
@@ -383,11 +362,6 @@ class Beta(_BaseDistribution):
 # region Gamma Distribution Class
 # ==================================================
 class Gamma(_BaseDistribution):
-
-    ##################################################
-    def __init__(self, data=None, ax=None):
-        super().__init__(data, ax)
-
     ##################################################
     @staticmethod
     def _get_type(): return "Gamma"
@@ -412,6 +386,92 @@ class Gamma(_BaseDistribution):
 # endregion Gamma Distribution Class
 # ==================================================
 
+# # ==================================================
+# # region Chi-Square Distribution Class
+# # ==================================================
+# class ChiSquare(_BaseDistribution):
+#     ##################################################
+#     @staticmethod
+#     def _get_type(): return "Chi-Square"
+#
+#     ##################################################
+#     def _cost(self, params):
+#         self.params["Degrees of freedom"] = params[0]
+#         return -np.sum(np.log(stats.chi2(self.params["Degrees of freedom"]).pdf(self.data)))
+#
+#     ##################################################
+#     def _find_parameters(self):
+#         with warnings.catch_warnings():
+#             warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
+#             # On ajoute une limite pour que les degrés de liberté soient forcément positifs
+#             minimize(self._cost, np.array([1.0]), method='Nelder-Mead', bounds=[(1e-6, None)])
+#         self._make_distribution()
+#
+#     ##################################################
+#     def _make_distribution(self):
+#         self.data_gen = np.random.chisquare(self.params["Degrees of freedom"], len(self.data))
+#
+# # ==================================================
+# # endregion Chi-Square Distribution Class
+# # ==================================================
+#
+# # ==================================================
+# # region Geometric Distribution Class
+# # ==================================================
+# class Geometric(_BaseDistribution):
+#     ##################################################
+#     @staticmethod
+#     def _get_type(): return "Geometric"
+#
+#     ##################################################
+#     def _cost(self, params):
+#         self.params["Probability"] = params[0]
+#         return -np.sum(np.log(stats.geom(self.params["Probability"]).cdf(self.data)))
+#
+#     ##################################################
+#     def _find_parameters(self):
+#         with warnings.catch_warnings():
+#             warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
+#             # On ajoute une limite pour que la probabilité soit entre 0 et 1.
+#             minimize(self._cost, np.array([1.0, 1.0]), method='Nelder-Mead', bounds=[(0.0, 1.0)])
+#         self._make_distribution()
+#
+#     ##################################################
+#     def _make_distribution(self):
+#         self.data_gen = np.random.geometric(self.params["Probability"], len(self.data))
+#
+# # ==================================================
+# # endregion Geometric Distribution Class
+# # ==================================================
+#
+# # ==================================================
+# # region Laplace Distribution Class
+# # ==================================================
+# class Laplace(_BaseDistribution):
+#     ##################################################
+#     @staticmethod
+#     def _get_type(): return "Laplace"
+#
+#     ##################################################
+#     def _cost(self, params):
+#         self.params["Position"] = params[0]
+#         return -np.sum(np.log(stats.laplace(self.params["Position"]).pdf(self.data)))
+#
+#     ##################################################
+#     def _find_parameters(self):
+#         with warnings.catch_warnings():
+#             warnings.simplefilter("ignore")  # Désactiver temporairement l'affichage des avertissements
+#             minimize(self._cost, np.array([1.0]), method='Nelder-Mead')
+#         self._make_distribution()
+#
+#     ##################################################
+#     def _make_distribution(self):
+#         self.data_gen = np.random.laplace(self.params["Position"], 1.0, len(self.data))
+#
+# # ==================================================
+# # endregion Laplace Distribution Class
+# # ==================================================
+
 # ==================================================
 # region Tests
 # ==================================================
@@ -433,7 +493,7 @@ if __name__ == "__main__":
     mu, sigma = 6.4, 1.0
     for n in sizes:
         dist = Log(np.random.lognormal(mu, sigma, n))
-        print(f"Log-Normal Distribution with {n} sample : Original mu ({mu}) VS Founded mu ({dist.params['Scale']})")
+        print(f"Log-Normal Distribution with {n} sample : Original mu ({mu}) VS Founded mu ({dist.params['Shape']})")
         print(dist)
 
     # Exponential Distribution
@@ -452,6 +512,25 @@ if __name__ == "__main__":
     for n in sizes:
         dist = Power(np.random.power(alpha, n))
         print(f"Power Distribution with {n} sample : Original Alpha ({alpha}) VS Founded Alpha ({dist.params['Alpha']})")
+        print(dist)
+
+    # Beta Distribution
+    print("\n**************************************************")
+    print("********** Beta Distribution : **********")
+    a, b = 2.5, 3.1
+    for n in sizes:
+        dist = Beta(np.random.beta(a, b, n))
+        print(f"Beta Distribution with {n} sample : Original A ({a}) VS Founded A ({dist.params['A']}), "
+              f"Original B ({b}) VS Founded B ({dist.params['B']})")
+        print(dist)
+
+    # Beta Distribution
+    print("\n**************************************************")
+    print("********** Gamma Distribution : **********")
+    shape = 3.1
+    for n in sizes:
+        dist = Gamma(np.random.gamma(a, b, n))
+        print(f"Gamma Distribution with {n} sample : Original Shape ({shape}) VS Founded Shape ({dist.params['Shape']})")
         print(dist)
 
     # Check Distributions

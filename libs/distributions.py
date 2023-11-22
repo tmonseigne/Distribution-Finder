@@ -144,6 +144,7 @@ class _BaseDistribution(ABC):
         sns.histplot(self.data_gen, kde=True, ax=ax)
         ax.set_title(f"{self.type} Distribution (MSE: {np.round(self.results['MSE'], 3)})")
         ax.legend(["data", f"{self.type} Distribution"], title="Distribution")
+        ax.set_xlabel("Values")
 
     @abstractmethod
     def _cost(self, params):

@@ -3,13 +3,33 @@ import os
 import sys
 
 import pandas as pd
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+from PyQt6.QtGui import QAction, QPixmap
+from PyQt6.QtWidgets import QApplication, QDialog, QFileDialog, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 
 from libs.distributions import check_distributions
 from libs.report import make_report
 
 result_path = "Output"
+
+##################################################
+class ImageWindow(QDialog):
+    def __init__(self, image_path, parent=None):
+        super(ImageWindow, self).__init__(parent)
+
+        # Paramétrage de la fenêtre
+        screen_res = QApplication.primaryScreen().geometry().size()
+        self.setMinimumSize(800, 450)                                   # Taille minimale de la Fenêtre
+        self.setMaximumSize(screen_res.width(), screen_res.height())    # Taille Maximale de la Fenêtre
+        self.setWindowTitle("Comparaison des distributions")            # Titre de la fenêtre
+        self.setGeometry(200, 200, 1280, 720)                           # Position de la fenêtre
+
+        self.layout = QVBoxLayout()
+        self.label = QLabel()
+        self.label.setScaledContents(True)                              # Force la mise à jour de la taille du contenu (donc l'image) selon la fenêtre
+        self.layout.addWidget(self.label)
+        pixmap = QPixmap(image_path)                                    # Chargement de l'image
+        self.label.setPixmap(pixmap)                                    # Application de l'image au widget
+        self.setLayout(self.layout)
 
 ##################################################
 class DistributionFinderUI(QMainWindow):
@@ -30,7 +50,7 @@ class DistributionFinderUI(QMainWindow):
     def initUI(self):
         """ Initialize l'interface """
         self.setWindowTitle("Distribution Finder")      # Titre de la fenêtre
-        self.resize(800, 600)                           # Définition de la taille par défaut
+        self.setGeometry(100, 100, 800, 600)            # Position de la fenêtre
 
         menubar = self.menuBar()
         open_action = QAction('Ouvrir CSV (Ctrl+O)', self)
@@ -66,22 +86,30 @@ class DistributionFinderUI(QMainWindow):
     ##################################################
     def loadCSV(self, file_path):
         """ Charge un fichier CSV """
-        self.dataframe = pd.read_csv(file_path)               # Charger le CSV dans le DataFrame
-        self.path, self.file_name = os.path.split(file_path)  # Séparer le chemin du fichier et le nom
-        self.file_name = os.path.splitext(self.file_name)[0]  # Obtention du nom de fichier sans extension
-        self.path = os.path.join(self.path, result_path)      # Ajout du dossier de résultat au chemin
-        os.makedirs(self.path, exist_ok=True)                 # Créer le dossier de résultat (la première fois, il n'existe pas)
+        self.dataframe = pd.read_csv(file_path)                                      # Charger le CSV dans le DataFrame
+        self.path, self.file_name = os.path.split(file_path)                         # Séparer le chemin du fichier et le nom
+        self.file_name = os.path.splitext(self.file_name)[0]                         # Obtention du nom de fichier sans extension
+        self.path = os.path.join(self.path, result_path)                             # Ajout du dossier de résultat au chemin
+        os.makedirs(self.path, exist_ok=True)                                        # Créer le dossier de résultat (la première fois, il n'existe pas)
 
-        self.table.setColumnCount(len(self.dataframe.columns))
-        self.table.setHorizontalHeaderLabels(self.dataframe.columns)
-        self.table.setRowCount(0)
+        self.table.setColumnCount(len(self.dataframe.columns))                       # Définition du nombre de colonnes
+        self.table.setRowCount(len(self.dataframe))                                  # Définition du nombre de lignes
+        self.table.setHorizontalHeaderLabels(self.dataframe.columns)                 # Titre des colonnes
 
         for row_num in range(len(self.dataframe)):
-            self.table.insertRow(row_num)
             for col_num in range(len(self.dataframe.columns)):
-                item = QTableWidgetItem(str(self.dataframe.iloc[row_num, col_num]))
-                self.table.setItem(row_num, col_num, item)
-        self.table.resizeColumnsToContents()
+                item = QTableWidgetItem(str(self.dataframe.iloc[row_num, col_num]))  # Récupération de la valeur
+                self.table.setItem(row_num, col_num, item)                           # Copie dans la table
+        self.table.resizeColumnsToContents()                                         # Mise à jour des largeurs de colonnes en fonction du contenu
+
+    ##################################################
+    def openImg(self, image_path):
+        """
+        Ouvre une nouvelle fenêtre avec l'image des distributions
+        :param image_path: Chemin vers l'image
+        """
+        img_window = ImageWindow(image_path, parent=self)
+        img_window.exec()
 
     ##################################################
     def process(self):
@@ -100,10 +128,13 @@ class DistributionFinderUI(QMainWindow):
                 make_report(data, results, f"{file_name}_Report", self.path)
                 self.status.setText(f"Rapport généré ici \"{self.path}\" pour la colonne {i} ({col_name}). "
                                     f"Distribution la plus proche : {results['Dataframe'].iloc[0][0]}.")
+                valid_name = file_name.replace(" ", "_")
+                self.openImg(os.path.join(self.path, f"{valid_name}_Report-001.png"))
             else:
                 self.status.setText(f"Veuillez sélectionner une seule colonne.")
         else:
             self.status.setText(f"Aucune colonne sélectionnée.")
+
 
 ##################################################
 if __name__ == "__main__":

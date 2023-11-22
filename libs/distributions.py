@@ -1,5 +1,6 @@
 """ Classes des distributions """
 
+import math
 import warnings
 from abc import ABC, abstractmethod
 
@@ -48,21 +49,27 @@ def get_kde_curve_mse(d1, d2):
     return np.mean((kde1[0] - kde2[0]) ** 2 + (kde1[1] - kde2[1]) ** 2)  # Calcul du MSE entre les points des courbes
 
 ##################################################
-def check_distributions(data):
+def check_distributions(data, distributions: list = None):
     """
     Lance une analyse sur toutes les distributions et renvoie une figure des histogrammes et le résultat des analyses
+    :param distributions: Liste des distributions à tester (par Défaut None signifie toutes)
     :param data: Distribution à analyser
     :return: Un dictionnaire contennant les éléments suivants
     - Figure : La figure contenant tous les histogrammes
     - Analysis : Le résultat de toutes les distributions
     - Dataframe : Dataframe récapitulatif (trié et arrondi à 10e-5)
     """
-    distributions = [Normal, Log, Exponential,
-                     Power, Beta, Gamma]
-    fig, axes = plt.subplots(3, 2, figsize=(16, 10), dpi=200)
+    if distributions is None:
+        distributions = [Normal, Log, Exponential, Power, Beta, Gamma]
+
+    n_dist = len(distributions)
+    rows = round(math.sqrt(n_dist))         # Arrondir au lieu d'un cast en int car ça évite trop de différence entre le nombre de lignes et colonnes
+    columns = (n_dist + rows - 1) // rows   # Arrondir vers le haut
+
+    fig, axes = plt.subplots(rows, columns, figsize=(16, 10), dpi=200)
     axes = axes.ravel()
     analysis = []
-    for i in range(len(distributions)):
+    for i in range(n_dist):
         analysis.append(distributions[i](data, axes[i]))
     res = combine_distributions(analysis)
     return dict(Figure=fig, Analysis=analysis, Dataframe=res)

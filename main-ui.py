@@ -13,15 +13,16 @@ result_path = "Output"
 
 ##################################################
 class ImageWindow(QDialog):
+    """ Classe du visualisateur d'image """
     def __init__(self, image_path, parent=None):
         super(ImageWindow, self).__init__(parent)
 
         # Paramétrage de la fenêtre
         screen_res = QApplication.primaryScreen().geometry().size()
-        self.setMinimumSize(800, 450)                                   # Taille minimale de la Fenêtre
+        self.setMinimumSize(800, 500)                                   # Taille minimale de la Fenêtre
         self.setMaximumSize(screen_res.width(), screen_res.height())    # Taille Maximale de la Fenêtre
         self.setWindowTitle("Comparaison des distributions")            # Titre de la fenêtre
-        self.setGeometry(200, 200, 1280, 720)                           # Position de la fenêtre
+        self.setGeometry(200, 200, 1200, 750)                           # Position de la fenêtre
 
         self.layout = QVBoxLayout()
         self.label = QLabel()

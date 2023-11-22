@@ -42,6 +42,16 @@ def make_report(distribution: np.ndarray, analysis: dict, name: str = "Report", 
     md_txt += f"\n## Récapitulatif des comparaisons entre la distribution actuelle et celles générées\n\n"
     md_txt += analysis["Dataframe"].to_markdown(index=False) + "\n"
 
+    # Ajout du blabla Box Cox
+    md_txt += f"\n## Transformation de Box-Cox\n\n"
+    if analysis['Box-Cox'] is None:
+        md_txt += ("La transformation de Box-Cox n'a pu être effectué, car des données négatives étaient présentes dans la distrbution"
+                   " ou celle-ci est constante.\n")
+    else:
+        md_txt += (f"Avec la transformation de Box-Cox on trouve un lambda λ ≈ {np.round(analysis['Box-Cox']['Lambda'], 3)}, "
+                   f"une nouvelle moyenne μ ≈ {np.round(analysis['Box-Cox']['Mu'], 3)} "
+                   f"et un nouvel écart-type σ ≈ {np.round(analysis['Box-Cox']['Sigma'], 3)} \n")
+
     # Ajout du blabla pour chaque distribution
     md_txt += f"\n## Comparaison distribution par distribution.\n\n"
     for i in range(len(dist_types)):

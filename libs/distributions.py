@@ -15,7 +15,7 @@ from scipy.optimize import minimize
 # region Misc Functions
 # ==================================================
 ##################################################
-def get_kde(d):
+def get_kde(d: np.ndarray):
     """
     Calcul de la courbe KDE (Kernel Density Estimation) de la distribution
     :param d: Distribution
@@ -26,7 +26,7 @@ def get_kde(d):
     return h.get_lines()[0].get_data()                                   # Récupération des courbes
 
 ##################################################
-def get_kde_mse(d1, d2, axis: int = 1):
+def get_kde_mse(d1: np.ndarray, d2: np.ndarray, axis: int = 1):
     """
     Calcul de la MSE (Mean Square Error) entre les coordonnées X ou Y des courbes KDE (Kernel Density Estimation) de deux distributions
     :param d1: Première Distribution
@@ -38,7 +38,7 @@ def get_kde_mse(d1, d2, axis: int = 1):
     return np.mean((kde1[axis] - kde2[axis]) ** 2)                       # Calcul du MSE entre les coordonnées Y des courbes
 
 ##################################################
-def get_kde_curve_mse(d1, d2):
+def get_kde_curve_mse(d1: np.ndarray, d2: np.ndarray):
     """
     Calcul de la MSE (Mean Square Error) entre les courbes KDE (Kernel Density Estimation) de deux distributions
     :param d1: Première Distribution
@@ -49,7 +49,7 @@ def get_kde_curve_mse(d1, d2):
     return np.mean((kde1[0] - kde2[0]) ** 2 + (kde1[1] - kde2[1]) ** 2)  # Calcul du MSE entre les points des courbes
 
 ##################################################
-def check_distributions(data, distributions: list = None):
+def check_distributions(data: np.ndarray, distributions: list = None):
     """
     Lance une analyse sur toutes les distributions et renvoie une figure des histogrammes et le résultat des analyses
     :param distributions: Liste des distributions à tester (par Défaut None signifie toutes)
@@ -71,11 +71,11 @@ def check_distributions(data, distributions: list = None):
     analysis = []
     for i in range(n_dist):
         analysis.append(distributions[i](data, axes[i]))
-    res = combine_distributions(analysis)
-    return dict(Figure=fig, Analysis=analysis, Dataframe=res)
+
+    return {"Figure": fig, "Analysis": analysis, "Dataframe": combine_distributions(analysis), "Box-Cox": box_cox_test(data)}
 
 ##################################################
-def combine_distributions(distributions):
+def combine_distributions(distributions: list):
     """
     Combine les différentes analyses de distributions en un seul dataframe
     :param distributions: liste des analyses
@@ -100,6 +100,17 @@ def combine_distributions(distributions):
         res.append(row)
     return pd.DataFrame(res, columns=columns).sort_values(by=["MSE", "MSE Scale", "MSE Curve", "Delta Kurtosis", "Delta Skewness"]).round(5)
 
+##################################################
+def box_cox_test(data: np.ndarray):
+    """
+    Lance un calcul d'une transformation de Box Cox.
+    :param data: Distribution à analyser
+    :return: Retourne un dictionnaire contenant les données transformées, le lambda de la transformation ainsi que la nouvelle moyenne et ecart-type.
+    """
+    if np.all(data == data[0]) or np.any(data <= 0): return None
+    transformed, lambda_ = stats.boxcox(data)
+    return dict(Transformed=transformed, Lambda=lambda_, Mu=np.mean(transformed), Sigma=np.std(transformed))
+
 # ==================================================
 # endregion Misc Functions
 # ==================================================
@@ -111,7 +122,7 @@ class _BaseDistribution(ABC):
     """ Classe mère des distributions """
 
     ##################################################
-    def __init__(self, data=None, ax=None):
+    def __init__(self, data: np.ndarray = None, ax: plt.axes = None):
         self.type = self._get_type()
         self.data, self.data_gen = None, None
         self.params = dict()
@@ -128,12 +139,13 @@ class _BaseDistribution(ABC):
                                f"Results : \n{self.print_result()}")
 
     ##################################################
-    def fit(self, data, ax=None):
+    def fit(self, data: np.ndarray, ax=None):
         """
         Ajoute un tableau de nombre à la classe qui sera la distribution à analyser
         :param ax: Axe sur lequel dessiner nos histogrammes
         :param data: Tableau des nombres à ajouter
         """
+        if len(data) < 10: raise ValueError("Distribution must have at least 10 values.")
         self.data = data.copy()
         self._find_parameters()
         self._make_distribution()
@@ -154,7 +166,7 @@ class _BaseDistribution(ABC):
         ax.set_xlabel("Values")
 
     @abstractmethod
-    def _cost(self, params):
+    def _cost(self, params: np.ndarray):
         """
         Fonction de coût pour l'ajustement des paramètres de distributions
         :param params: Paramètres à trouver
@@ -207,6 +219,7 @@ class _BaseDistribution(ABC):
             r = stats.anderson_ksamp([kde[1], kde_gen[1]])
             self.results["Anderson-Darling Test on KDE"] = dict(P=r.significance_level, S=r.statistic)
 
+    ##################################################
     def print_result(self):
         """
         Mets en forme les résultats.
@@ -230,7 +243,7 @@ class Normal(_BaseDistribution):
     def _get_type(): return "Normal"
 
     ##################################################
-    def _cost(self, params): return 0.0
+    def _cost(self, params: np.ndarray): return 0.0
 
     ##################################################
     def _find_parameters(self):
@@ -253,7 +266,7 @@ class Log(_BaseDistribution):
     def _get_type(): return "Log"
 
     ##################################################
-    def _cost(self, params):
+    def _cost(self, params: np.ndarray):
         self.params["Shape"] = params[0]
         # self._make_distribution()
         # return get_kde_mse(self.data, self.data_gen)
@@ -283,7 +296,7 @@ class Exponential(_BaseDistribution):
     def _get_type(): return "Exponential"
 
     ##################################################
-    def _cost(self, params):
+    def _cost(self, params: np.ndarray):
         self.params["Scale"] = params[0]
         # self._make_distribution()
         # return get_kde_mse(self.data, self.data_gen)
@@ -313,7 +326,7 @@ class Power(_BaseDistribution):
     def _get_type(): return "Power"
 
     ##################################################
-    def _cost(self, params):
+    def _cost(self, params: np.ndarray):
         self.params["Alpha"] = params[0]
         return -np.sum(np.log(stats.powerlaw(self.params["Alpha"]).pdf(self.data)))
 
@@ -346,7 +359,7 @@ class Beta(_BaseDistribution):
     def _get_type(): return "Beta"
 
     ##################################################
-    def _cost(self, params):
+    def _cost(self, params: np.ndarray):
         self.params["A"] = params[0]
         self.params["B"] = params[1]
         return -np.sum(np.log(stats.beta(self.params["A"], self.params["B"]).pdf(self.data)))
@@ -375,7 +388,7 @@ class Gamma(_BaseDistribution):
     def _get_type(): return "Gamma"
 
     ##################################################
-    def _cost(self, params):
+    def _cost(self, params: np.ndarray):
         self.params["Shape"] = params[0]
         return -np.sum(np.log(stats.gamma(self.params["Shape"]).pdf(self.data)))
 
@@ -403,7 +416,7 @@ class Gamma(_BaseDistribution):
 #     def _get_type(): return "Chi-Square"
 #
 #     ##################################################
-#     def _cost(self, params):
+#     def _cost(self, params: np.ndarray):
 #         self.params["Degrees of freedom"] = params[0]
 #         return -np.sum(np.log(stats.chi2(self.params["Degrees of freedom"]).pdf(self.data)))
 #
@@ -432,7 +445,7 @@ class Gamma(_BaseDistribution):
 #     def _get_type(): return "Geometric"
 #
 #     ##################################################
-#     def _cost(self, params):
+#     def _cost(self, params: np.ndarray):
 #         self.params["Probability"] = params[0]
 #         return -np.sum(np.log(stats.geom(self.params["Probability"]).cdf(self.data)))
 #
@@ -461,7 +474,7 @@ class Gamma(_BaseDistribution):
 #     def _get_type(): return "Laplace"
 #
 #     ##################################################
-#     def _cost(self, params):
+#     def _cost(self, params: np.ndarray):
 #         self.params["Position"] = params[0]
 #         return -np.sum(np.log(stats.laplace(self.params["Position"]).pdf(self.data)))
 #

@@ -7,4 +7,4 @@ Find closest distribution
 ## Prérequis
 
 - Python 3.8 ou supérieur
-  - pip install numpy pandas matplotlib seaborn tabulate
+  - pip install numpy pandas scipy matplotlib seaborn tabulate PyQt6

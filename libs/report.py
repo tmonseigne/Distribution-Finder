@@ -1,8 +1,7 @@
 """ Fonctions permettant de créer un rapport """
 
-import os.path
+import os
 import numpy as np
-import pandas as pd
 
 ##################################################
 def get_distribution_types(analysis: dict):

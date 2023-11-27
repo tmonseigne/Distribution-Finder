@@ -11,43 +11,12 @@ import seaborn as sns
 from scipy import stats
 from scipy.optimize import minimize
 
+from libs.utils import get_kde, get_kde_curve_mse, get_kde_mse, box_cox_test
+
+
 # ==================================================
-# region Misc Functions
+# region Combine Functions
 # ==================================================
-##################################################
-def get_kde(d: np.ndarray):
-    """
-    Calcul de la courbe KDE (Kernel Density Estimation) de la distribution
-    :param d: Distribution
-    :return: Les données du tracé de la courbe
-    """
-    fig, ax = plt.subplots(figsize=(16, 10), dpi=200)
-    h = sns.kdeplot(d, ax=ax)                                            # Dessin du KDE de la seconde distribution
-    return h.get_lines()[0].get_data()                                   # Récupération des courbes
-
-##################################################
-def get_kde_mse(d1: np.ndarray, d2: np.ndarray, axis: int = 1):
-    """
-    Calcul de la MSE (Mean Square Error) entre les coordonnées X ou Y des courbes KDE (Kernel Density Estimation) de deux distributions
-    :param d1: Première Distribution
-    :param d2: Seconde Distribution
-    :param axis: Axe du calcul (0 pour X 1 pour Y), 1 par défaut
-    :return: valeur de la MSE
-    """
-    kde1, kde2 = get_kde(d1), get_kde(d2)                                # Récupération des courbes
-    return np.mean((kde1[axis] - kde2[axis]) ** 2)                       # Calcul du MSE entre les coordonnées Y des courbes
-
-##################################################
-def get_kde_curve_mse(d1: np.ndarray, d2: np.ndarray):
-    """
-    Calcul de la MSE (Mean Square Error) entre les courbes KDE (Kernel Density Estimation) de deux distributions
-    :param d1: Première Distribution
-    :param d2: Seconde Distribution
-    :return: valeur de la MSE
-    """
-    kde1, kde2 = get_kde(d1), get_kde(d2)                                # Récupération des courbes
-    return np.mean((kde1[0] - kde2[0]) ** 2 + (kde1[1] - kde2[1]) ** 2)  # Calcul du MSE entre les points des courbes
-
 ##################################################
 def check_distributions(data: np.ndarray, distributions: list = None):
     """
@@ -59,8 +28,8 @@ def check_distributions(data: np.ndarray, distributions: list = None):
     - Analysis : Le résultat de toutes les distributions
     - Dataframe : Dataframe récapitulatif (trié et arrondi à 10e-5)
     """
-    if distributions is None:
-        distributions = [Normal, Log, Exponential, Power, Beta, Gamma]
+    if len(data) == 0: raise ValueError("Empty array is not allowed.")
+    if distributions is None: distributions = [Normal, Log, Exponential, Power]
 
     n_dist = len(distributions)
     rows = round(math.sqrt(n_dist))         # Arrondir au lieu d'un cast en int car ça évite trop de différence entre le nombre de lignes et colonnes
@@ -82,6 +51,7 @@ def combine_distributions(distributions: list):
     :return: Dataframe contenant les informations calculées lors de l'analyse.
     Les éléments sont triés par MSE puis kurtosis et skewness en cas d'égalité et arrondi à 10e-5.
     """
+    if len(distributions) == 0: raise ValueError("Empty list is not allowed.")
     res = []
     columns = ["Distribution", "Parameters", "MSE", "MSE Scale", "MSE Curve", "Delta Kurtosis", "Delta Skewness",
                "Kolmogorov-Smirnov Test", "Shapiro-Wilk Test", "Wasserstein Distance",
@@ -100,19 +70,8 @@ def combine_distributions(distributions: list):
         res.append(row)
     return pd.DataFrame(res, columns=columns).sort_values(by=["MSE", "MSE Scale", "MSE Curve", "Delta Kurtosis", "Delta Skewness"]).round(5)
 
-##################################################
-def box_cox_test(data: np.ndarray):
-    """
-    Lance un calcul d'une transformation de Box Cox.
-    :param data: Distribution à analyser
-    :return: Retourne un dictionnaire contenant les données transformées, le lambda de la transformation ainsi que la nouvelle moyenne et ecart-type.
-    """
-    if np.all(data == data[0]) or np.any(data <= 0): return None
-    transformed, lambda_ = stats.boxcox(data)
-    return dict(Transformed=transformed, Lambda=lambda_, Mu=np.mean(transformed), Sigma=np.std(transformed))
-
 # ==================================================
-# endregion Misc Functions
+# endregion Combine Functions
 # ==================================================
 
 # ==================================================
@@ -194,7 +153,7 @@ class _BaseDistribution(ABC):
             """ Calcule la différence entre la distribution stockée et la distribution générée """
             kde, kde_gen = get_kde(self.data), get_kde(self.data_gen)  # Récupération des courbes
             # Basic Tests
-            self.results["MSE"] = get_kde_mse(self.data, self.data_gen)
+            self.results["MSE"] = get_kde_mse(self.data, self.data_gen, 1)
             self.results["MSE Scale"] = get_kde_mse(self.data, self.data_gen, 0)
             self.results["MSE Curve"] = get_kde_curve_mse(self.data, self.data_gen)
             self.results["Delta Kurtosis"] = np.fabs(stats.kurtosis(self.data) - stats.kurtosis(self.data_gen))

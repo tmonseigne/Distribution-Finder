@@ -87,9 +87,11 @@ def check_normality(distributions: dict):
     :return: Dictionnaire contenant les informations calculées lors de l'analyse.
     """
     if len(distributions) == 0: raise ValueError("Empty dictionnary is not allowed.")
+    original_std = np.std(distributions["Original"])
     valid_distributions = dict()
     for name, array in distributions.items():
-        if array is None or not np.isfinite(array).all(): continue
+        # Si le tableau est valide (pas null et contenant des élémemnts non fini) et si son écart-type n'est pas aberrant par rapport à l'original
+        if array is None or not np.isfinite(array).all() or original_std/np.std(array) < 1e-6: continue
         valid_distributions[name] = array
     if len(valid_distributions) == 0: raise ValueError("No valid array in dictionnary.")
 
@@ -108,9 +110,8 @@ def check_normality(distributions: dict):
     analysis = []
     i = 0
     for name, array in valid_distributions.items():
-        if array is None or not np.isfinite(array).all(): continue
         normal_analysis = Normal(array, axes[i])
-        axes[i].set_title(f"{name} transformation (MSE: {np.round(normal_analysis.results['MSE'], 3)})")
+        axes[i].set_title(f"{name} transformation (MSE: {np.round(normal_analysis.results['MSE Curve'], 3)})")
         table.append(get_values(normal_analysis, name, cols_name))
         analysis.append(normal_analysis)
         i += 1

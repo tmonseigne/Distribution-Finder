@@ -7,7 +7,7 @@ from PyQt6.QtGui import QAction, QPixmap
 from PyQt6.QtWidgets import QApplication, QDialog, QFileDialog, QLabel, QMainWindow, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 
 from libs.distributions import check_distributions
-from libs.report import make_report
+from libs.report import make_distribution_report
 
 result_path = "Output"
 
@@ -126,7 +126,7 @@ class DistributionFinderUI(QMainWindow):
                 self.status.setText(f"Colonne {i} ({col_name}) sélectionnée, calcul en cours...")
                 results = check_distributions(data)
                 results["Dataframe"].to_csv(os.path.join(self.path, f"{file_name}_Results.csv"), index=False)
-                make_report(data, results, f"{file_name}_Report", self.path)
+                make_distribution_report(data, results, f"{file_name}_Report", self.path)
                 self.status.setText(f"Rapport généré ici \"{self.path}\" pour la colonne {i} ({col_name}). "
                                     f"Distribution la plus proche : {results['Dataframe'].iloc[0][0]}.")
                 valid_name = file_name.replace(" ", "_")

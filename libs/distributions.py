@@ -13,10 +13,29 @@ from scipy.optimize import minimize
 
 from libs.utils import get_kde, get_kde_curve_mse, get_kde_mse, box_cox_test
 
-
 # ==================================================
 # region Combine Functions
 # ==================================================
+##################################################
+def get_values(analysis, head, columns):
+    """
+    Récupère les informations de l'analyse
+    :param analysis: Analyse effectuée.
+    :param head: Première valeur de la liste (le nom de la dsitribution do'rigine ou le nom de l'analyse par exemple).
+    :param columns: Colonnes à enregistrer
+    :return: une liste de chaine de caractères
+    """
+    res = [f"{head}"]
+    tmp = ""
+    for key, value in analysis.params.items():
+        tmp += f"{key} ({value}) "
+    res.append(tmp)
+    for i in range(2, len(columns)):
+        tmp = analysis.results[columns[i]]
+        if isinstance(tmp, dict):   res.append(analysis.results[columns[i]]["P"])
+        else:                       res.append(analysis.results[columns[i]])
+    return res
+
 ##################################################
 def check_distributions(data: np.ndarray, distributions: list = None):
     """
@@ -49,7 +68,7 @@ def combine_distributions(distributions: list):
     Combine les différentes analyses de distributions en un seul dataframe
     :param distributions: liste des analyses
     :return: Dataframe contenant les informations calculées lors de l'analyse.
-    Les éléments sont triés par MSE puis kurtosis et skewness en cas d'égalité et arrondi à 10e-5.
+    Les éléments sont triés par MSE puis kurtosis et skewness en cas d'égalité et arrondi à 10e-5 pour faciliter la lecture.
     """
     if len(distributions) == 0: raise ValueError("Empty list is not allowed.")
     res = []
@@ -57,18 +76,47 @@ def combine_distributions(distributions: list):
                "Kolmogorov-Smirnov Test", "Shapiro-Wilk Test", "Wasserstein Distance",
                "Pearson Correlation Test on values", "Pearson Correlation Test on KDE",
                "Anderson-Darling Test on values", "Anderson-Darling Test on KDE"]
-    for d in distributions:
-        row = [f"{d.type}"]
-        tmp = ""
-        for k, v in d.params.items():
-            tmp += f"{k} ({v}) "
-        row.append(tmp)
-        for i in range(2, len(columns)):
-            tmp = d.results[columns[i]]
-            if isinstance(tmp, dict):   row.append(d.results[columns[i]]["P"])
-            else:                       row.append(d.results[columns[i]])
-        res.append(row)
+    for d in distributions: res.append(get_values(d, d.type, columns))
     return pd.DataFrame(res, columns=columns).sort_values(by=["MSE", "MSE Scale", "MSE Curve", "Delta Kurtosis", "Delta Skewness"]).round(5)
+
+##################################################
+def check_normality(distributions: dict):
+    """
+    Calcule pour chacune des distributions sa proximité avec une distribution normale
+    :param distributions: liste des dsitributions (normalement plusieurs transformations d'une distribution d'origine)
+    :return: Dictionnaire contenant les informations calculées lors de l'analyse.
+    """
+    if len(distributions) == 0: raise ValueError("Empty dictionnary is not allowed.")
+    valid_distributions = dict()
+    for name, array in distributions.items():
+        if array is None or not np.isfinite(array).all(): continue
+        valid_distributions[name] = array
+    if len(valid_distributions) == 0: raise ValueError("No valid array in dictionnary.")
+
+    table = []
+    cols_name = ["Distribution", "Parameters", "MSE Curve", "MSE", "MSE Scale", "Delta Kurtosis", "Delta Skewness",
+                 "Kolmogorov-Smirnov Test", "Shapiro-Wilk Test", "Wasserstein Distance",
+                 "Pearson Correlation Test on values", "Pearson Correlation Test on KDE",
+                 "Anderson-Darling Test on values", "Anderson-Darling Test on KDE"]
+
+    n_dist = len(valid_distributions)
+    rows = round(math.sqrt(n_dist))  # Arrondir au lieu d'un cast en int car ça évite trop de différence entre le nombre de lignes et colonnes
+    columns = (n_dist + rows - 1) // rows  # Arrondir vers le haut
+
+    fig, axes = plt.subplots(rows, columns, figsize=(16, 10), dpi=200)
+    axes = axes.ravel()
+    analysis = []
+    i = 0
+    for name, array in valid_distributions.items():
+        if array is None or not np.isfinite(array).all(): continue
+        normal_analysis = Normal(array, axes[i])
+        axes[i].set_title(f"{name} transformation (MSE: {np.round(normal_analysis.results['MSE'], 3)})")
+        table.append(get_values(normal_analysis, name, cols_name))
+        analysis.append(normal_analysis)
+        i += 1
+
+    dataframe = pd.DataFrame(table, columns=cols_name).sort_values(by=["MSE Curve", "MSE", "MSE Scale", "Delta Kurtosis", "Delta Skewness"]).round(5)
+    return dict(Figure=fig, Distribution=valid_distributions, Analysis=analysis, Dataframe=dataframe)
 
 # ==================================================
 # endregion Combine Functions
@@ -520,6 +568,8 @@ if __name__ == "__main__":
 # ==================================================
 # endregion Tests
 # ==================================================
+
+ALL_DISTRIBUTIONS = [Normal, Log, Exponential, Power, Beta, Gamma]
 
 # Liste des symboles à exporter (pour limiter les accès)
 # __all__ = ["check_distributions", "Normal", "Exponential", "Power", "Log"]

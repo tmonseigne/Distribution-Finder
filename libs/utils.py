@@ -74,11 +74,12 @@ def transform(data: np.ndarray):
     le logarithme, l'exponentiel, la puissance carrée, la racine carrée et la transformation inverse.
     """
     if len(data) == 0: raise ValueError("Empty array is not allowed.")
-    return dict(Log=np.log(data + 1) if np.all(data > 0) else None,
-                Exponential=np.exp(data),
+    return dict(Original=data,
+                Log=np.log(data + 1) if np.all(data >= 0) else None,        # Seulement des valeurs positives pour le log (le + 1 pour éviter le gap du log)
+                Exponential=np.exp(data) if np.all(data < 1234) else None,  # Overflow Exponential
                 Square=np.power(data, 2),
-                Root=np.power(data, 0.5),
-                Inverse=1 / data if np.all(data != 0) else None)
+                Root=np.power(data, 0.5) if np.all(data >= 0) else None,    # Seulement des valeurs positives pour la racine carrée
+                Inverse=1 / data if np.all(data != 0) else None)            # Aucune division par 0.
 
 # ==================================================
 # endregion Transform Functions

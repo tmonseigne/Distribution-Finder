@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 ##################################################
-def get_distribution_types(analysis: dict):
+def _get_distribution_types(analysis: dict):
     """
     Récupère la liste des distributions testées
     :param analysis: Résultat de l'analyse
@@ -16,7 +16,13 @@ def get_distribution_types(analysis: dict):
     return types
 
 ##################################################
-def make_report(distribution: np.ndarray, analysis: dict, name: str = "Report", path: str = ""):
+def _add_fig(fig, name, path):
+    fig.tight_layout()
+    fig.savefig(os.path.join(path, name), bbox_inches="tight")
+    return f"![Comparaison]({name})\n"
+
+##################################################
+def make_distribution_report(distribution: np.ndarray, analysis: dict, name: str = "Report", path: str = ""):
     """
     Créé un rapport markdown
     :param distribution: Distribution originale
@@ -24,20 +30,16 @@ def make_report(distribution: np.ndarray, analysis: dict, name: str = "Report", 
     :param name: Nom du rapport
     :param path: Chemin du rapport
     """
-    dist_types = get_distribution_types(analysis)
-    valid_name = name.replace(" ", "_")
+    dist_types = _get_distribution_types(analysis)
     md_txt = f"# Analyse de la distribution\n\n"
     md_txt += (f"Distribution de {len(distribution)} samples ({type(distribution[0])}) "
                f"comparé avec {len(dist_types)} distributions : {', '.join(t for t in dist_types)}\n")
 
     # Ajout de la figure
     md_txt += f"\n## Figures de comparaison entre la distribution actuelle et celles générées\n\n"
-    fig = analysis["Figure"]
-    fig.tight_layout()
-    fig.savefig(os.path.join(path, f"{valid_name}-001.png"), bbox_inches="tight")
-    md_txt += f"![Comparaison]({valid_name}-001.png)\n"
+    md_txt += _add_fig(analysis["Figure"], f"{name.replace(' ', '_')}-001.png", path)
 
-    # Ajout du dataframe sous format de tabelau
+    # Ajout du dataframe sous format de tableau
     md_txt += f"\n## Récapitulatif des comparaisons entre la distribution actuelle et celles générées\n\n"
     md_txt += analysis["Dataframe"].to_markdown(index=False) + "\n"
 
@@ -66,3 +68,44 @@ def make_report(distribution: np.ndarray, analysis: dict, name: str = "Report", 
     with open(os.path.join(path, name+".md"), 'w', encoding='utf-8') as f:
         f.write(md_txt)
     # Enregistrement du md en pdf ?
+
+##################################################
+def make_normality_report(distribution: np.ndarray, analysis: dict, name: str = "Report", path: str = ""):
+    """
+    Créé un rapport markdown
+    :param distribution: Distribution originale
+    :param analysis: Résultat de l'analyse
+    :param name: Nom du rapport
+    :param path: Chemin du rapport
+    """
+    valid_transform = list(analysis['Distribution'].keys())
+    md_txt = f"# Analyse de la normalité\n\n"
+    md_txt += (f"Distribution de {len(distribution)} samples ({type(distribution[0])}) "
+               f"comparé avec {len(valid_transform)} transformations : {', '.join(t for t in valid_transform)}\n")
+
+    # Ajout de la figure
+    md_txt += f"\n## Figures de comparaison entre la distribution normale et celles transformées\n\n"
+    md_txt += _add_fig(analysis["Figure"], f"{name.replace(' ', '_')}-001.png", path)
+
+    # Ajout du dataframe sous format de tableau
+    md_txt += f"\n## Récapitulatif des comparaisons entre la distribution normale et celles transformées\n\n"
+    md_txt += analysis["Dataframe"].to_markdown(index=False) + "\n"
+
+    # Ajout du blabla pour chaque distribution
+    md_txt += f"\n## Comparaison distribution par distribution.\n\n"
+    for i in range(len(valid_transform)):
+        md_txt += f"\n### Distribution Normale VS {valid_transform[i]}\n\n"
+        a = analysis['Analysis'][i]
+        md_txt += f"Paramètres de la transformation {valid_transform[i]} : {a.params}\n\n"
+        md_txt += f"Resultats : \n\n"
+        for test, value in a.results.items():
+            md_txt += f"* {test} : {value}\n"
+        md_txt += f"\n"
+
+    # Enregistrement en .md
+    with open(os.path.join(path, name+".md"), 'w', encoding='utf-8') as f:
+        f.write(md_txt)
+    # Enregistrement du md en pdf ?
+
+# Liste des symboles à exporter (pour limiter les accès)
+__all__ = ["make_distribution_report", "make_normality_report"]
